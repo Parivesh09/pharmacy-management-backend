@@ -7,9 +7,7 @@ const { Ledger, Group, UserCompany } = require("../models");
 const { Op } = require("sequelize");
 
 class LedgerService {
-  /**
-   * Create a new ledger
-   */
+
   static async createLedger(ledgerData, companyId) {
     try {
       // Validate group exists
@@ -18,7 +16,6 @@ class LedgerService {
         throw new Error("Account group not found");
       }
 
-      // Check for duplicate ledger name in company
       const existingLedger = await Ledger.findOne({
         where: {
           ledgerName: ledgerData.ledgerName,
@@ -42,9 +39,6 @@ class LedgerService {
     }
   }
 
-  /**
-   * Update an existing ledger
-   */
   static async updateLedger(ledgerId, ledgerData, companyId) {
     try {
       const ledger = await Ledger.findOne({
@@ -116,6 +110,7 @@ class LedgerService {
       limit = 10,
       search = "",
       groupId = null,
+      groupIds = null, // New parameter for multiple group IDs
       balanceType = null,
       status = null,
       isActive = null,
@@ -133,7 +128,10 @@ class LedgerService {
         ];
       }
 
-      if (groupId) {
+      // Handle single groupId or multiple groupIds
+      if (groupIds && Array.isArray(groupIds) && groupIds.length > 0) {
+        where.acgroup = { [Op.in]: groupIds };
+      } else if (groupId) {
         where.acgroup = groupId;
       }
 

@@ -43,7 +43,7 @@ const authLimiter = rateLimit({
 
 const adminLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 50,
+  max: 1000, // Increased from 50 to 1000 for admin users
   message: {
     error: 'Too many admin requests from this IP, please try again later.',
     retryAfter: '15 minutes'

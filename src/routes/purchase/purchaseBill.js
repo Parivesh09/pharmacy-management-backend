@@ -161,6 +161,27 @@ router.post('/v1/:id/record-payment', PurchaseBillController.recordPayment);
  */
 router.put('/v1/:id/change-status', PurchaseBillController.changeBillStatus);
 
+/**
+ * @swagger
+ * /pharmacy/admin/purchase/bill/v1/debug-batch/{batchId}:
+ *   get:
+ *     tags:
+ *       - Purchase - Bills
+ *     summary: Debug batch quantity (for troubleshooting)
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: batchId
+ *         in: path
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Batch quantity debug information
+ */
+router.get('/v1/debug-batch/:batchId', PurchaseBillController.debugBatchQuantity);
+
 // Legacy routes for backward compatibility
 router.get('/get-bills', PurchaseBillController.getAllPurchaseBills);
 router.get('/get-bill/:id', PurchaseBillController.getPurchaseBillById);

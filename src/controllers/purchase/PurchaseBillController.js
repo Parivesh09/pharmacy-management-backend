@@ -3,6 +3,65 @@ const { PurchaseBill, PurchaseBillItem, Ledger, PurchaseMaster, Batch, Item } = 
 const BillCalculationService = require('../../services/billCalculationService');
 const { Op } = require('sequelize');
 
+// Add a debug function to check batch quantities
+const debugBatchQuantity = async (req, res) => {
+  try {
+    const { batchId } = req.params;
+    const userCompanyId = req.companyId || req.user?.userCompanyId;
+
+    if (!userCompanyId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Company ID is required',
+      });
+    }
+
+    const batch = await Batch.findOne({
+      where: { id: batchId, userCompanyId },
+      include: [
+        { model: Item, as: 'item', attributes: ['id', 'itemName'] }
+      ]
+    });
+
+    if (!batch) {
+      return res.status(404).json({
+        success: false,
+        message: 'Batch not found',
+      });
+    }
+
+    // Get all purchase bill items for this batch
+    const purchaseItems = await PurchaseBillItem.findAll({
+      where: { batchId },
+      include: [
+        { model: PurchaseBill, as: 'bill', attributes: ['id', 'billNo', 'billDate'] }
+      ]
+    });
+
+    const totalPurchased = purchaseItems.reduce((sum, item) => sum + parseFloat(item.quantity), 0);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        batch,
+        currentQuantity: batch.quantity,
+        totalPurchased,
+        purchaseItems: purchaseItems.map(item => ({
+          billNo: item.bill?.billNo,
+          billDate: item.bill?.billDate,
+          quantity: item.quantity
+        }))
+      }
+    });
+  } catch (error) {
+    console.error('Error debugging batch quantity:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 const generateBillNumber = async (userCompanyId) => {
   try {
     const today = new Date().toISOString().split('T')[0].replace(/-/g, '');
@@ -128,16 +187,59 @@ const createPurchaseBill = async (req, res) => {
           batchId: batchId || null,
         });
 
-        // Update batch quantity if batchId is provided
+        // Update batch quantity and expiry date if batchId is provided
         if (batchId) {
+          console.log(`Updating batch ${batchId} with quantity ${item.quantity}`);
           const batch = await Batch.findOne({
             where: { id: batchId, userCompanyId }
           });
 
           if (batch) {
-            batch.quantity = parseFloat(batch.quantity) + parseFloat(item.quantity);
+            const oldQuantity = parseFloat(batch.quantity);
+            const newQuantity = oldQuantity + parseFloat(item.quantity);
+            console.log(`Batch ${batchId}: Old quantity: ${oldQuantity}, Adding: ${item.quantity}, New quantity: ${newQuantity}`);
+            
+            // Update batch quantity
+            batch.quantity = newQuantity;
+            
+            // Update expiry date if provided in the item
+            if (item.expDate) {
+              batch.expiryDate = item.expDate;
+              console.log(`Batch ${batchId}: Updated expiry date to ${item.expDate}`);
+            }
+            
+            // Update manufacturing date if provided
+            if (item.mfgDate) {
+              batch.mfgDate = item.mfgDate;
+              console.log(`Batch ${batchId}: Updated mfg date to ${item.mfgDate}`);
+            }
+            
+            // Update MRP and purchase rate if provided
+            if (item.mrp) {
+              batch.mrp = item.mrp;
+            }
+            if (item.rate) {
+              batch.purchaseRate = item.rate;
+            }
+            
+            // Update billing MRP if provided
+            if (item.billingMrp) {
+              batch.billingMrp = item.billingMrp;
+            }
+            
+            // Update unit if provided
+            if (item.unit1st) {
+              batch.unit1st = item.unit1st;
+            }
+            
             await batch.save();
+            
+            console.log(`Batch ${batchId} updated successfully. New quantity: ${batch.quantity}, Expiry: ${batch.expiryDate}`);
+          } else {
+            console.error(`Batch with ID ${batchId} not found for company ${userCompanyId}`);
           }
+        } else {
+          console.log(`No batchId provided for item ${item.itemId}`);
         }
       }
     }
@@ -149,6 +251,20 @@ const createPurchaseBill = async (req, res) => {
         { model: PurchaseMaster, as: 'purchaseMaster', attributes: ['id', 'purchaseType'] }
       ],
     });
+
+    // Verify batch quantities after creation (for debugging)
+    if (items && items.length) {
+      for (const item of calculations.items) {
+        if (item.batchId) {
+          const verifyBatch = await Batch.findOne({
+            where: { id: item.batchId, userCompanyId }
+          });
+          if (verifyBatch) {
+            console.log(`Verification - Batch ${item.batchId} final quantity: ${verifyBatch.quantity}`);
+          }
+        }
+      }
+    }
 
     res.status(201).json({
       success: true,
@@ -372,14 +488,44 @@ const updatePurchaseBill = async (req, res) => {
           batchId: batchId || null,
         });
 
-        // Update batch quantity if batchId is provided
+        // Update batch quantity and expiry date if batchId is provided
         if (batchId) {
           const batch = await Batch.findOne({
             where: { id: batchId, userCompanyId }
           });
 
           if (batch) {
+            // Update batch quantity
             batch.quantity = parseFloat(batch.quantity) + parseFloat(item.quantity);
+            
+            // Update expiry date if provided in the item
+            if (item.expDate) {
+              batch.expiryDate = item.expDate;
+            }
+            
+            // Update manufacturing date if provided
+            if (item.mfgDate) {
+              batch.mfgDate = item.mfgDate;
+            }
+            
+            // Update MRP and purchase rate if provided
+            if (item.mrp) {
+              batch.mrp = item.mrp;
+            }
+            if (item.rate) {
+              batch.purchaseRate = item.rate;
+            }
+            
+            // Update billing MRP if provided
+            if (item.billingMrp) {
+              batch.billingMrp = item.billingMrp;
+            }
+            
+            // Update unit if provided
+            if (item.unit1st) {
+              batch.unit1st = item.unit1st;
+            }
+            
             await batch.save();
           }
         }
@@ -581,4 +727,5 @@ module.exports = {
   deletePurchaseBill,
   recordPayment,
   changeBillStatus,
+  debugBatchQuantity,
 };

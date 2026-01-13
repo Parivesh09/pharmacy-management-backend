@@ -91,6 +91,7 @@ const getItems = async (req, res) => {
       ["status", "company"],
       userCompanyId
     );
+    
     const { count, rows } = await Item.findAndCountAll({
       where,
       include: [
@@ -117,8 +118,45 @@ const getItems = async (req, res) => {
       limit,
       order,
     });
+
+    const itemsWithStock = await Promise.all(
+      rows.map(async (item) => {
+        const batches = await db.Batch.findAll({
+          where: { 
+            itemId: item.id, 
+            userCompanyId,
+            status: 'Active' 
+          },
+          attributes: ['id', 'batchNumber', 'quantity', 'closingQty', 'unit1st', 'expiryDate', 'mfgDate', 'mrp', 'billingMrp', 'purchaseRate', 'status'],
+          order: [['createdAt', 'DESC']]
+        });
+        
+        const totalStock = batches.reduce((sum, batch) => {
+          return sum + parseFloat(batch.quantity || 0);
+        }, 0);
+
+        return {
+          ...item.toJSON(),
+          stock: parseFloat(totalStock.toFixed(2)),
+          batches: batches.map(batch => ({
+            id: batch.id,
+            batchNumber: batch.batchNumber,
+            quantity: parseFloat(batch.quantity || 0),
+            closingQty: parseFloat(batch.closingQty || 0),
+            unit1st: batch.unit1st,
+            expiryDate: batch.expiryDate,
+            mfgDate: batch.mfgDate,
+            mrp: parseFloat(batch.mrp || 0),
+            billingMrp: parseFloat(batch.billingMrp || 0),
+            purchaseRate: parseFloat(batch.purchaseRate || 0),
+            status: batch.status
+          }))
+        };
+      })
+    );
+
     res.status(200).json({
-      data: rows,
+      data: itemsWithStock,
       total: count,
       page,
       totalPages: Math.ceil(count / limit),

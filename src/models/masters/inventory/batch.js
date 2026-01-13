@@ -53,11 +53,31 @@ module.exports = (sequelize, DataTypes) => {
         min: 0
       }
     },
+    closingQty: {
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: true,
+      defaultValue: 0,
+      validate: {
+        min: 0
+      }
+    },
+    unit1st: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
     expiryDate: {
       type: DataTypes.DATEONLY,
       allowNull: true
     },
+    mfgDate: {
+      type: DataTypes.DATEONLY,
+      allowNull: true
+    },
     mrp: {
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: true
+    },
+    billingMrp: {
       type: DataTypes.DECIMAL(10, 2),
       allowNull: true
     },

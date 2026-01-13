@@ -93,17 +93,24 @@ class LedgerController {
         limit = 10,
         search = "",
         groupId,
+        groupIds,
         balanceType,
         status,
         isActive,
         companyId,
       } = req.query;
 
+      let parsedGroupIds = null;
+      if (groupIds) {
+        parsedGroupIds = Array.isArray(groupIds) ? groupIds : groupIds.split(',').map(id => id.trim());
+      }
+
       const result = await LedgerService.getLedgersByCompany(companyId, {
         page: parseInt(page),
         limit: parseInt(limit),
         search,
         groupId,
+        groupIds: parsedGroupIds,
         balanceType,
         status,
         isActive: isActive !== undefined ? isActive === "true" : null,
@@ -125,10 +132,6 @@ class LedgerController {
     }
   }
 
-  /**
-   * Get ledgers by company ID
-   * GET /ledger/v1/get-ledger/by-companyId/:companyId
-   */
   static async getLedgersByCompanyId(req, res) {
     try {
       const { companyId } = req.params;
@@ -137,16 +140,24 @@ class LedgerController {
         limit = 10,
         search = "",
         groupId,
+        groupIds, // New parameter for multiple group IDs
         balanceType,
         status,
         isActive,
       } = req.query;
+
+      // Parse groupIds if provided as comma-separated string
+      let parsedGroupIds = null;
+      if (groupIds) {
+        parsedGroupIds = Array.isArray(groupIds) ? groupIds : groupIds.split(',').map(id => id.trim());
+      }
 
       const result = await LedgerService.getLedgersByCompany(companyId, {
         page: parseInt(page),
         limit: parseInt(limit),
         search,
         groupId,
+        groupIds: parsedGroupIds,
         balanceType,
         status,
         isActive: isActive !== undefined ? isActive === "true" : null,
