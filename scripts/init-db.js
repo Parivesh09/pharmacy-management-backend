@@ -4,6 +4,8 @@
  * Checks if database exists, creates it if not, then runs migrations and seeds
  */
 
+// checking if worflow is working fine or not
+
 const { Client } = require('pg');
 const { execSync } = require('child_process');
 const path = require('path');
