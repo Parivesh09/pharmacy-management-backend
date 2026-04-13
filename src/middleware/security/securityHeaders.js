@@ -75,6 +75,7 @@ const corsConfig = {
       'http://localhost:3000',
       'http://localhost:5173',
       'http://localhost:4173',
+      'https://pharmacy.asrhospitals.com',
       process.env.FRONTEND_URL,
       process.env.ALLOWED_ORIGIN
     ].filter(Boolean);
@@ -93,7 +94,8 @@ const corsConfig = {
     'Content-Type',
     'Accept',
     'Authorization',
-    'X-Request-ID'
+    'X-Request-ID',
+    'x-company-id'
   ],
   exposedHeaders: ['X-Request-ID', 'X-Total-Count'],
   maxAge: 86400

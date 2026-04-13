@@ -69,7 +69,7 @@ const applySecurityMiddleware = (app, environment = 'development') => {
 
 
   if (envConfig.enableCors) {
-    app.use(cors(securityConfig.cors));
+    app.use(cors(corsConfig));
   }
 
 
