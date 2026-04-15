@@ -17,8 +17,8 @@ const createItem = async (req, res) => {
       salerate,
     } = req.body;
     
-    // Use company from body if provided, otherwise use req.companyId from header
-    const userCompanyId = req.companyId;
+    // Use company from body if provided, otherwise use req.companyId from header or user object
+    const userCompanyId = req.companyId || req.user?.userCompanyId;
 
     if (!productname || !unit1 || !hsnsac || !taxcategory || !userCompanyId) {
       return res.status(400).json({
@@ -84,7 +84,15 @@ const createItem = async (req, res) => {
 
 const getItems = async (req, res) => {
   try {
-    const userCompanyId = req.companyId;
+    const userCompanyId = req.companyId || req.user?.userCompanyId;
+
+    if (!userCompanyId) {
+      return res.status(400).json({
+        success: false,
+        message: "Company ID is required",
+      });
+    }
+
     const { where, offset, limit, order, page } = buildQueryOptions(
       req.query,
       ["productname"],
@@ -187,7 +195,7 @@ const updateItem = async (req, res) => {
   try {
     const { id } = req.params;
     const itemData = req.body;
-    const userCompanyId = req.companyId;
+    const userCompanyId = req.companyId || req.user?.userCompanyId;
 
     const item = await Item.findOne({
       where: { id, userCompanyId }

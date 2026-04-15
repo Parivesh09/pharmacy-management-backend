@@ -5,7 +5,7 @@ const Station = db.Station;
 exports.createStation = async (req, res) => {
   try {
     const { name } = req.body;
-    const userCompanyId = req.companyId;
+    const userCompanyId = req.companyId || req.user?.userCompanyId;
 
     const existingStation = await Station.findOne({
       where: { name, userCompanyId },
@@ -25,13 +25,14 @@ exports.createStation = async (req, res) => {
 
 exports.getStations = async (req, res) => {
   try {
+    const userCompanyId = req.companyId || req.user?.userCompanyId;
     const {
       where,
       offset = 0,
       limit = 10,
       order,
       page,
-    } = buildQueryOptions(req.query, ["name"], ["id", "name"]);
+    } = buildQueryOptions(req.query, ["name"], ["id", "name"], userCompanyId);
     const { count, rows: stations } = await Station.findAndCountAll({
       where,
       offset,
