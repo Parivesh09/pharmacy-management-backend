@@ -1,11 +1,11 @@
-# ASR Pharma Backend
+# Pharmacy Management Backend
 
 A comprehensive Pharmacy Management System backend built with Node.js, Express, and PostgreSQL.
 
 ## 🏗️ **Project Structure**
 
 ```
-asr-pharma/
+pharmacy-management-backend/
 ├── src/                          # Main source code
 │   ├── app.js                    # Express app configuration
 │   ├── server.js                 # Server entry point
@@ -61,7 +61,7 @@ asr-pharma/
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
-   cd asr-pharma
+   cd pharmacy-management-backend
    ```
 
 2. **Install dependencies**

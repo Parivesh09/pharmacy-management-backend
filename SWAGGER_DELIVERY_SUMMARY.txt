@@ -1,9 +1,9 @@
 ================================================================================
                     SWAGGER/OPENAPI DOCUMENTATION DELIVERY
-                              ASR Pharma Backend
+                             Pharmacy Management Backend
 ================================================================================
 
-PROJECT: ASR Pharma Management System API Documentation
+PROJECT: Pharmacy Management API Documentation
 DATE: January 2025
 VERSION: 1.0.0
 STATUS: ✅ COMPLETE AND READY TO USE

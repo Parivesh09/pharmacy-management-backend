@@ -4,12 +4,12 @@ const options = {
   definition: {
     openapi: '3.0.0',
     info: {
-      title: 'ASR Pharma Management System API',
+      title: 'Pharmacy Management API',
       version: '1.0.0',
       description: 'Comprehensive Pharmacy Management System API with authentication, inventory, accounting, and billing modules',
       contact: {
-        name: 'ASR Pharma Team',
-        email: 'support@asrpharma.com',
+        name: 'Parivesh',
+        email: 'support@example.com',
       },
       license: {
         name: 'MIT',
@@ -21,7 +21,7 @@ const options = {
         description: 'Development server',
       },
       {
-        url: 'https://api.asrpharma.com',
+        url: 'https://api.pharmacy-management.example',
         description: 'Production server',
       },
     ],

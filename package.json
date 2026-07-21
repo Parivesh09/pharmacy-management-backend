@@ -1,5 +1,5 @@
 {
-  "name": "asr-pharma-backend",
+  "name": "pharmacy-management-backend",
   "version": "1.0.0",
   "description": "Pharmacy Management System Backend",
   "main": "src/server.js",
@@ -29,7 +29,7 @@
     "sequelize",
     "postgresql"
   ],
-  "author": "ASR Pharma",
+  "author": "Parivesh",
   "license": "MIT",
   "dependencies": {
     "axios": "^1.11.0",
