@@ -150,6 +150,120 @@ router.post('/:id/payment', BillController.recordPayment);
  */
 router.patch('/:id/status', BillController.changeBillStatus);
 
+/**
+ * @swagger
+ * /pharmacy/sales/bills/v1/quick-sale:
+ *   post:
+ *     tags:
+ *       - Sales - POS
+ *     summary: Create quick sale (POS)
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *     responses:
+ *       201:
+ *         description: Quick sale created successfully
+ */
+router.post('/quick-sale', BillController.createQuickSale);
+
+/**
+ * @swagger
+ * /pharmacy/sales/bills/v1/held:
+ *   get:
+ *     tags:
+ *       - Sales - POS
+ *     summary: Get held bills
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of held bills
+ */
+router.get('/held', BillController.getHeldBills);
+
+/**
+ * @swagger
+ * /pharmacy/sales/bills/v1/hold:
+ *   post:
+ *     tags:
+ *       - Sales - POS
+ *     summary: Hold a bill
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *     responses:
+ *       201:
+ *         description: Bill held successfully
+ */
+router.post('/hold', BillController.holdBill);
+
+/**
+ * @swagger
+ * /pharmacy/sales/bills/v1/{id}/release-hold:
+ *   post:
+ *     tags:
+ *       - Sales - POS
+ *     summary: Release held bill
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Held bill released successfully
+ */
+router.post('/:id/release-hold', BillController.releaseHeldBill);
+
+/**
+ * @swagger
+ * /pharmacy/sales/bills/v1/{id}/print:
+ *   get:
+ *     tags:
+ *       - Sales - POS
+ *     summary: Get printable bill format
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Printable bill data
+ */
+router.get('/:id/print', BillController.getPrintableBill);
+
+/**
+ * @swagger
+ * /pharmacy/sales/bills/v1/summary/today:
+ *   get:
+ *     tags:
+ *       - Sales - POS
+ *     summary: Get today's sales summary
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Today's sales summary
+ */
+router.get('/summary/today', BillController.getTodaySummary);
+
 // Legacy routes for backward compatibility
 router.get('/get-bills', BillController.getAllBills);
 router.get('/get-bill/:id', BillController.getBillById);

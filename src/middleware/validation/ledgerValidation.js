@@ -96,8 +96,8 @@ const validateGetLedgers = [
   
   query('groupId')
     .optional()
-    .isInt({ min: 1 })
-    .withMessage('Group ID must be a valid positive integer'),
+    .isUUID()
+    .withMessage('Group ID must be a valid UUID'),
   
   query('search')
     .optional()
@@ -117,7 +117,17 @@ const validateGetLedgers = [
   query('balanceType')
     .optional()
     .isIn(['Debit', 'Credit'])
-    .withMessage('Balance type must be either Debit or Credit')
+    .withMessage('Balance type must be either Debit or Credit'),
+  
+  query('groupIds')
+    .optional()
+    .isArray()
+    .withMessage('groupIds must be an array'),
+  
+  query('groupIds.*')
+    .optional()
+    .isUUID()
+    .withMessage('Each group ID must be a valid UUID')
 ];
 
 const validateGetLedgerByCompanyId = [

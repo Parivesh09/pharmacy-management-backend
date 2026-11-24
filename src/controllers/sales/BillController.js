@@ -450,6 +450,444 @@ const changeBillStatus = async (req, res) => {
   }
 };
 
+/**
+ * Create quick sale (POS) - simplified bill creation for counter sales
+ */
+const createQuickSale = async (req, res) => {
+  try {
+    const { 
+      items, 
+      billDiscountPercent = 0, 
+      cgstPercent = 0, 
+      sgstPercent = 0,
+      paymentMethod = 'cash',
+      receivedAmount = 0,
+      customerName = 'Cash Patient',
+      customerId = null,
+      ...billData 
+    } = req.body;
+    
+    const userCompanyId = req.companyId || req.user?.userCompanyId;
+    const userId = req.user?.id;
+
+    if (!userCompanyId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Company ID is required',
+      });
+    }
+
+    if (!items || items.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'At least one item is required',
+      });
+    }
+
+    // Validate bill data
+    BillCalculationService.validateBillData({ ...billData, items });
+
+    // Generate bill number if not provided
+    if (!billData.billNo) {
+      billData.billNo = await generateBillNumber(userCompanyId);
+    }
+
+    // Calculate totals with proper tax structure
+    const calculations = BillCalculationService.calculateBillTotals(
+      items || [],
+      billDiscountPercent,
+      {
+        igstPercent: 0,
+        cgstPercent,
+        sgstPercent,
+        cessPercent: 0,
+      }
+    );
+
+    const totalAmount = calculations.totalAmount;
+    const paidAmount = parseFloat(receivedAmount) || 0;
+    const dueAmount = Math.max(0, totalAmount - paidAmount);
+    const paymentStatus = BillCalculationService.getPaymentStatus(totalAmount, paidAmount);
+    const status = paymentStatus === 'Paid' ? 'Paid' : 'Pending';
+
+    // Create bill with calculated values
+    const bill = await Bill.create({
+      ...billData,
+      userCompanyId,
+      createdBy: userId,
+      updatedBy: userId,
+      partyName: customerName,
+      partyId: customerId,
+      patientName: customerName,
+      patientId: customerId,
+      paymentMethod,
+      receivedAmount: paidAmount,
+      ...calculations,
+      paidAmount,
+      dueAmount,
+      paymentStatus,
+      status,
+    });
+
+    // Create bill items
+    if (items && items.length) {
+      for (const item of calculations.items) {
+        await BillItem.create({
+          ...item,
+          billId: bill.id,
+        });
+      }
+    }
+
+    const fullBill = await Bill.findByPk(bill.id, {
+      include: [{ model: BillItem, as: 'billItems' }],
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Quick sale completed successfully',
+      data: fullBill,
+    });
+  } catch (error) {
+    console.error('Error creating quick sale:', error);
+    res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+/**
+ * Get held bills (Draft status)
+ */
+const getHeldBills = async (req, res) => {
+  try {
+    const userCompanyId = req.companyId || req.user?.userCompanyId;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const offset = (page - 1) * limit;
+
+    if (!userCompanyId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Company ID is required',
+      });
+    }
+
+    const where = { 
+      userCompanyId, 
+      status: 'Draft' 
+    };
+
+    const { count, rows } = await Bill.findAndCountAll({
+      where,
+      offset,
+      limit,
+      order: [['createdAt', 'DESC']],
+      include: [{ model: BillItem, as: 'billItems' }],
+      raw: false,
+    });
+
+    res.status(200).json({
+      success: true,
+      data: rows,
+      total: count,
+      page,
+      totalPages: Math.ceil(count / limit),
+    });
+  } catch (error) {
+    console.error('Error fetching held bills:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+/**
+ * Hold a bill (save as Draft)
+ */
+const holdBill = async (req, res) => {
+  try {
+    const { 
+      items, 
+      billDiscountPercent = 0, 
+      cgstPercent = 0, 
+      sgstPercent = 0,
+      customerName = 'Cash Patient',
+      customerId = null,
+      ...billData 
+    } = req.body;
+    
+    const userCompanyId = req.companyId || req.user?.userCompanyId;
+    const userId = req.user?.id;
+
+    if (!userCompanyId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Company ID is required',
+      });
+    }
+
+    if (!items || items.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'At least one item is required',
+      });
+    }
+
+    BillCalculationService.validateBillData({ ...billData, items });
+
+    if (!billData.billNo) {
+      billData.billNo = await generateBillNumber(userCompanyId);
+    }
+
+    const calculations = BillCalculationService.calculateBillTotals(
+      items || [],
+      billDiscountPercent,
+      {
+        igstPercent: 0,
+        cgstPercent,
+        sgstPercent,
+        cessPercent: 0,
+      }
+    );
+
+    const bill = await Bill.create({
+      ...billData,
+      userCompanyId,
+      createdBy: userId,
+      updatedBy: userId,
+      partyName: customerName,
+      partyId: customerId,
+      patientName: customerName,
+      patientId: customerId,
+      ...calculations,
+      paidAmount: 0,
+      dueAmount: calculations.totalAmount,
+      paymentStatus: 'Unpaid',
+      status: 'Draft',
+    });
+
+    if (items && items.length) {
+      for (const item of calculations.items) {
+        await BillItem.create({
+          ...item,
+          billId: bill.id,
+        });
+      }
+    }
+
+    const fullBill = await Bill.findByPk(bill.id, {
+      include: [{ model: BillItem, as: 'billItems' }],
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Bill held successfully',
+      data: fullBill,
+    });
+  } catch (error) {
+    console.error('Error holding bill:', error);
+    res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+/**
+ * Release held bill (convert Draft to active)
+ */
+const releaseHeldBill = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { paymentMethod = 'cash', receivedAmount = 0 } = req.body;
+    const userCompanyId = req.companyId || req.user?.userCompanyId;
+    const userId = req.user?.id;
+
+    if (!userCompanyId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Company ID is required',
+      });
+    }
+
+    const bill = await Bill.findOne({
+      where: { id, userCompanyId, status: 'Draft' },
+      include: [{ model: BillItem, as: 'billItems' }],
+    });
+
+    if (!bill) {
+      return res.status(404).json({
+        success: false,
+        message: 'Held bill not found',
+      });
+    }
+
+    const paidAmount = parseFloat(receivedAmount) || 0;
+    const dueAmount = Math.max(0, parseFloat(bill.totalAmount) - paidAmount);
+    const paymentStatus = BillCalculationService.getPaymentStatus(bill.totalAmount, paidAmount);
+    const status = paymentStatus === 'Paid' ? 'Paid' : 'Pending';
+
+    await bill.update({
+      status,
+      paymentMethod,
+      receivedAmount: paidAmount,
+      paidAmount,
+      dueAmount,
+      paymentStatus,
+      updatedBy: userId,
+    });
+
+    const updatedBill = await Bill.findByPk(bill.id, {
+      include: [{ model: BillItem, as: 'billItems' }],
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Bill released successfully',
+      data: updatedBill,
+    });
+  } catch (error) {
+    console.error('Error releasing held bill:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+/**
+ * Get printable bill format
+ */
+const getPrintableBill = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userCompanyId = req.companyId || req.user?.userCompanyId;
+
+    if (!userCompanyId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Company ID is required',
+      });
+    }
+
+    const bill = await Bill.findOne({
+      where: { id, userCompanyId },
+      include: [{ model: BillItem, as: 'billItems' }],
+    });
+
+    if (!bill) {
+      return res.status(404).json({
+        success: false,
+        message: 'Bill not found',
+      });
+    }
+
+    // Format for printing
+    const printData = {
+      billNo: bill.billNo,
+      date: bill.date,
+      customerName: bill.partyName || bill.patientName || 'Cash Patient',
+      customerAddress: bill.address,
+      items: bill.billItems?.map(item => ({
+        name: item.productname,
+        batch: item.batch,
+        expiry: item.expDate,
+        qty: item.quantity,
+        rate: item.rate,
+        discount: item.discountPercent,
+        amount: item.amount,
+        gst: {
+          igst: item.igstPercent,
+          cgst: item.cgstPercent,
+          sgst: item.sgstPercent,
+          cess: item.cessPercent,
+        }
+      })) || [],
+      subtotal: bill.subtotal,
+      discount: bill.billDiscountAmount,
+      tax: bill.totalTaxAmount,
+      total: bill.totalAmount,
+      paid: bill.paidAmount,
+      due: bill.dueAmount,
+      paymentMethod: bill.paymentMethod,
+      paymentStatus: bill.paymentStatus,
+    };
+
+    res.status(200).json({
+      success: true,
+      data: printData,
+    });
+  } catch (error) {
+    console.error('Error getting printable bill:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+/**
+ * Get today's sales summary
+ */
+const getTodaySummary = async (req, res) => {
+  try {
+    const userCompanyId = req.companyId || req.user?.userCompanyId;
+    const todayStart = new Date().toISOString().split('T')[0];
+    const todayEnd = new Date(new Date().getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+    if (!userCompanyId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Company ID is required',
+      });
+    }
+
+    const where = { 
+      userCompanyId,
+      date: {
+        [Op.gte]: todayStart,
+        [Op.lt]: todayEnd,
+      }
+    };
+
+    const bills = await Bill.findAll({
+      where,
+      attributes: ['totalAmount', 'paidAmount', 'paymentStatus', 'status', 'paymentMethod'],
+    });
+
+    const summary = {
+      totalBills: bills.length,
+      totalSales: bills.reduce((sum, b) => sum + parseFloat(b.totalAmount || 0), 0),
+      totalPaid: bills.reduce((sum, b) => sum + parseFloat(b.paidAmount || 0), 0),
+      totalDue: bills.reduce((sum, b) => sum + Math.max(0, parseFloat(b.totalAmount || 0) - parseFloat(b.paidAmount || 0)), 0),
+      byPaymentMethod: {},
+      byStatus: {}
+    };
+
+    bills.forEach(bill => {
+      const method = bill.paymentMethod || 'cash';
+      summary.byPaymentMethod[method] = (summary.byPaymentMethod[method] || 0) + parseFloat(bill.totalAmount || 0);
+      
+      const status = bill.status || 'Unknown';
+      summary.byStatus[status] = (summary.byStatus[status] || 0) + 1;
+    });
+
+    res.status(200).json({
+      success: true,
+      data: summary,
+    });
+  } catch (error) {
+    console.error('Error getting today summary:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   createBill,
   getAllBills,
@@ -458,4 +896,10 @@ module.exports = {
   deleteBill,
   recordPayment,
   changeBillStatus,
+  createQuickSale,
+  getHeldBills,
+  holdBill,
+  releaseHeldBill,
+  getPrintableBill,
+  getTodaySummary,
 };
